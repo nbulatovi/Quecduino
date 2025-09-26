@@ -18,10 +18,13 @@ Quecduino is an Arduino ESP32 library example showing how to command Quectel LPW
 
 * ESP-WROOM-32 board
 * Quectel BG950A-GL-TE-B_V1.1
+    * Switch PON_TRIG set to OFF
+    * Switch AUTO_POWER_ON set to ON
+* Connections
     * D25 <-> RXD
     * D26 <-> TXD
     * D27 <-> DTR
-    * D14 <-> PON_TRIG
+    * D33 <-> PON_TRIG
     * GND <-> GND
 
 ## Future plans

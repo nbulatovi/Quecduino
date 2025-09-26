@@ -3,9 +3,15 @@
 
 #include <Arduino.h>
 #include <Ticker.h>
-
 #include <map>
 #include <string>
+
+#define AT_BUF_SIZE             128
+#define COMMAND_TIMEOUT         10000
+#define NETWORK_TIMEOUT         180000
+#define REGISTRATION_TIMEOUT    300000
+#define WAIT_FOR(condition, timeout) LPWA.wait_for([&]() { return (condition); }, #condition, timeout)
+#define PRINT Serial.printf
 
 // Types of cellular modules this library supports
 typedef enum {
@@ -13,10 +19,9 @@ typedef enum {
     BG772A, // BG77xA-GL series variants
     BG773A, // BG77xA-GL series variants
     BG950A, // BG950A-GL - Compact Cat M1/NB1/NB2/GPRS with GNSS and iSIM
-    BG951A, // BG951A-GL - Part of BG95xA-GL series
     BG952A, // BG952A-GL - Part of BG95xA-GL series
     BG953A, // BG953A-GL - Part of BG95xA-GL series
-    BG955A  // BG955A-GL - Part of BG95xA-GL series
+    BG955A, // BG955A-GL - Part of BG95xA-GL series
 } Module_t;
 
 // Main class for controlling cellular modules
@@ -40,19 +45,19 @@ public:
     LPWAClass() {}
 
     // Start the driver - call this first in setup()
-    // at_port: which Serial port to use (like &Serial1)
+    // at_port: Serial port for AT commands (for example: &Serial1)
     // dtr_pin: pin number for DTR control
-    // wakeup_pin: PON_TRIG pin number for sleep/wake control on RK3_00-based firmware versions
+    // wakeup_pin: pin number connected to PON_TRIG, for sleep/wake control 
     void begin(HardwareSerial *at_port, uint8_t dtr_pin, uint8_t wakeup_pin);
 
     // Stop the driver
     void end();
 
+    // Reset and configure the module for use - call this after begin()
+    void reset();
+
     // Reset module back to factory defaults
     void factory_reset();
-
-    // Configure the module for use - call this after begin()
-    void configure();
 
     // Wake up module from sleep mode
     void wakeup();
@@ -62,6 +67,18 @@ public:
 
     // Call this regularly in your loop() - handles background stuff
     void update();
+
+    // Enable eDRX mode
+    void enable_drx();
+
+    // Disable eDRX mode
+    void disable_drx();
+
+    // Enable PSM mode to save power
+    void enable_psm();
+
+    // Disable PSM mode
+    void disable_psm();
 
     // Turn on GPS to get location
     void start_gnss();

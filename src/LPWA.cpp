@@ -1,12 +1,6 @@
 #include "LPWA.h"
 #include "gnss_errors.h"
 
-#define COMMAND_TIMEOUT     10000
-#define NETWORK_TIMEOUT     180000
-#define AT_BUF_SIZE         128
-#define PRINT               Serial.printf
-#define WAIT_FOR(condition, timeout) wait_for([&]() { return (condition); }, #condition, timeout)
-
 LPWAClass LPWA;
 
 void LPWAClass::recv_task() {
@@ -25,92 +19,32 @@ void LPWAClass::begin(HardwareSerial *at_port0, uint8_t dtr_pin0, uint8_t wakeup
     at_port = at_port0;
     dtr_pin = dtr_pin0;
     pon_trig_pin = wakeup_pin;
-    // pinMode(pon_trig_pin, OUTPUT);
+    pinMode(pon_trig_pin, OUTPUT);
     // pinMode(dtr_pin, OUTPUT);
-    // digitalWrite(dtr_pin, HIGH);
     received.reserve(AT_BUF_SIZE);
     result.reserve(AT_BUF_SIZE);
     urc_list.reserve(256);
     ticker.attach(0.01, [this]() { this->recv_task(); });
 }
 
-void LPWAClass::update() {
-    PRINT("[LPWA] %s\n", LPWA.get_urc_list().c_str());
-}
-
 void LPWAClass::end() {
     ticker.detach();
 }
 
+void LPWAClass::update() {
+    PRINT("[LPWA] %s\n", LPWA.get_urc_list().c_str());
+}
+
 void LPWAClass::wakeup() {
+    PRINT("[LPWA] wakeup\n");
     digitalWrite(pon_trig_pin, HIGH);
+    digitalWrite(dtr_pin, LOW);
 }
 
 void LPWAClass::sleep() {
+    PRINT("[LPWA] sleep\n");
     digitalWrite(pon_trig_pin, LOW);
-}
-
-void LPWAClass::factory_reset() {
-    WAIT_FOR(ready, NETWORK_TIMEOUT);
-    at_send("AT+QGPSDEL=0");
-    at_send("AT&F1");
-    WAIT_FOR(ready, NETWORK_TIMEOUT);
-}
-
-void LPWAClass::configure() {
-    received.clear();
-    result.clear();
-    urc_map.clear();
-
-    WAIT_FOR(ready, NETWORK_TIMEOUT);
-
-    if (config.module == BG951A) {
-        PRINT("[LPWA] Set GNSS mode\n");
-        at_send("AT+QGPSCFG=\"gnss_mode\",1"); // CXD5605 I2C mode
-        // at_send("AT+QGPSCFG=\"gnss_mode\",2"); // CXD5605 UART mode
-    }
-    PRINT("[LPWA] Configure Network\n");
-    at_send("AT+QCFG=\"band\",0,80000,80000,1");    // Band 20
-    at_send("AT+QCFG=\"iotopmode\",0,1");           // CatM mode
-    // at_send("AT+QCFG=\"iotopmode\",1,1");           // NB-IoT mode
-    PRINT("[LPWA] Enable AGNSS\n");
-    at_send("AT+QGPSXTRA=1");
-
-    PRINT("[LPWA] Reset\n");
-    ready = false;
-    at_send("AT+CFUN=1,1");
-    WAIT_FOR(ready, NETWORK_TIMEOUT);
-
-    if (!LPWA.ready) PRINT("[LPWA] ERROR: Timed out waiting for modem reset\n");
-
-    PRINT("[LPWA] Subscribe to URC\n");
-    at_send("AT+CMEE=2");
-    at_send("AT+CEREG=1");
-    at_send("AT+QCFG=\"psm/urc\",1");
-
-    PRINT("[LPWA] Configure GPS\n");
-    if (config.module == BG951A) {
-    at_send("AT+QGPSCFG=\"xtra_cfg\",\"" + config.proxy_url + "\"");
-        // at_send("AT+QGPSCFG=\"xtra_cfg\",\"" + config.proxy_url + "\"");
-        // at_send("AT+QGPSCFG=\"xtrafilesize\",14");
-    } else {
-        at_send("AT+QGPSCFG=\"priority\",1,1");
-        at_send("AT%IGNSSEV=\"ALL\",1");
-        at_send("AT%IGNSSTST=\"DEBUGNMEA\",\"0x0e0c03ef\"");
-        PRINT("[LPWA] Configure AGNSS proxy server\n");
-        at_send("AT+QGPSCFG=\"xtra_cfg\",\"" + config.proxy_url + "\"");
-        at_send("AT+QGPSCFG=\"xtrafilesize\",7");
-    }
-    at_send("AT+QGPSXTRA?");
-    at_send("AT+QGPSXTRATIME?");
-
-    PRINT("[LPWA] Save settings\n");
-    at_send("AT&W");
-
-    PRINT("[LPWA] Query status\n");
-    at_send("AT+CEDRXRDP");
-    at_send("AT+CPSMS?");
-    at_send("AT+QGMR?");
+    digitalWrite(dtr_pin, HIGH);
 }
 
 void LPWAClass::process_response() {
@@ -121,7 +55,7 @@ void LPWAClass::process_response() {
         result = received;
     } else if (received.find("APP RDY") == 0) {
         ready = true;
-    } else if (received.find("POWER DOWN") == 0) {
+    } else if (received.find("POWER DOWN") != std::string::npos) {
         gps_on = ready = false;
     } else if (received.find("+") == 0) {
         // Parse URC
@@ -130,8 +64,11 @@ void LPWAClass::process_response() {
         registered = !urc_map["CEREG"].empty() && (urc_map["CEREG"].back()=='1' || urc_map["CEREG"].back()=='5');
         // Explain GNSS error codes
         if (received.find("+CME ERROR") == 0) {
-            PRINT("[LPWA] GNSS error description: %s\n", gnss_error_table.at(urc_map["CME ERROR"]).c_str());
+            result = received;
+            PRINT("[LPWA] GNSS ERROR: %s\n", gnss_error_table.at(urc_map["CME ERROR"]).c_str());
         }
+    } else if (received.find("NP Package: RK_")==0 && received.find("NP Package: RK_03_00")!=0) {
+        PRINT("[LPWA] ERROR: unsupported RK version");
     }
 }
 
@@ -145,6 +82,7 @@ bool LPWAClass::wait_for(std::function<bool()> condition, char *cond_name, uint3
             log = millis();
         }
     }
+    delay(100);
     return condition();
 }
 
@@ -159,7 +97,6 @@ std::string LPWAClass::at_send(std::string command) {
     at_port->println(command.c_str());
     at_port->flush();
     WAIT_FOR(!result.empty(), COMMAND_TIMEOUT);
-    delay(100);
     return result;
 }
 
@@ -167,6 +104,92 @@ std::string &LPWAClass::get_urc_list() {
     urc_list.clear();
     for (auto& [k, v] : urc_map) urc_list += k + "=" + v + " ";
     return urc_list;
+}
+
+void LPWAClass::reset() {
+    received.clear();
+    result.clear();
+    urc_map.clear();
+
+    PRINT("[LPWA] Wait modem ready\n");
+    at_send("AT"); // for easier testing with dev board
+    WAIT_FOR(ready, NETWORK_TIMEOUT);
+
+    PRINT("[LPWA] Factory reset\n");
+    LPWA.factory_reset();
+    WAIT_FOR(ready, NETWORK_TIMEOUT);
+
+    PRINT("[LPWA] Read versions\n");
+    at_send("AT+CGMM");
+    at_send("AT%VER");
+    PRINT("[LPWA] Enable AGNSS\n");
+    at_send("AT+QGPSXTRA=1");
+    PRINT("[LPWA] Configure network\n");
+    at_send("AT+QCFG=\"band\",0,80000,80000,1");    // Band 20
+    PRINT("[LPWA] Reset modem\n");
+    ready = false;
+    at_send("AT+CFUN=1,1");
+    WAIT_FOR(ready, NETWORK_TIMEOUT);
+
+    if (!LPWA.ready) PRINT("[LPWA] ERROR: Timed out waiting for modem reset\n");
+
+    PRINT("[LPWA] Subscribe to URC\n");
+    at_send("AT+CMEE=2");
+    at_send("AT+CEREG=1");
+    at_send("AT+QCFG=\"psm/urc\",1");
+
+    PRINT("[LPWA] Configure GPS\n");
+    at_send("AT+QGPSCFG=\"priority\",1,1");
+    at_send("AT%IGNSSEV=\"ALL\",1");
+    at_send("AT%IGNSSTST=\"DEBUGNMEA\",\"0x0e0c03ef\"");
+    PRINT("[LPWA] Configure AGNSS proxy server\n");
+    at_send("AT+QGPSCFG=\"xtra_cfg\",\"" + config.proxy_url + "\"");
+    at_send("AT+QGPSCFG=\"xtrafilesize\",7");
+
+    at_send("AT+QGPSXTRA?");
+    at_send("AT+QGPSXTRATIME?");
+
+    PRINT("[LPWA] Save settings\n");
+    at_send("AT&W");
+
+    PRINT("[LPWA] Query status\n");
+    at_send("AT+CEDRXRDP");
+    at_send("AT+CPSMS?");
+    at_send("AT+QGMR?");
+}
+
+void LPWAClass::factory_reset() {
+    WAIT_FOR(ready, NETWORK_TIMEOUT);
+    at_send("AT+QGPSDEL=0");
+    at_send("AT&F1");
+    WAIT_FOR(ready, NETWORK_TIMEOUT);
+}
+
+void LPWAClass::enable_drx() {
+    WAIT_FOR(registered, REGISTRATION_TIMEOUT);
+    at_send("AT+QPTWEDRXS=2,4,\"0011\",\"1111\"");
+    at_send("AT+CEDRXRDP");
+    digitalWrite(dtr_pin, HIGH);
+    delay(200);
+    digitalWrite(dtr_pin, LOW);
+    at_send("AT+QSCLK=2");
+}
+
+void LPWAClass::disable_drx() {
+    at_send("AT+QPTWEDRXS=0");
+    at_send("AT+QPTWEDRXS?");
+    at_send("AT+CEDRXRDP");
+}
+
+void LPWAClass::enable_psm() {
+    WAIT_FOR(registered, REGISTRATION_TIMEOUT);
+    at_send("AT+QCFG=\"psm/enter\",1");
+    at_send("AT+CPSMS=1,,,\"10101010\",\"00001111\"");
+}
+
+void LPWAClass::disable_psm() {
+    at_send("AT+CPSMS=0");
+    at_send("AT+CPSMS?");
 }
 
 void LPWAClass::start_gnss() {

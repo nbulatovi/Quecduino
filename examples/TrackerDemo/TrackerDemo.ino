@@ -1,13 +1,14 @@
 #include <LPWA.h>
 
 void setup() {
-    Serial.begin(115200);
-    
+    Serial.begin(115200);    
     Serial2.begin(115200, SERIAL_8N1, 26, 25);
-    LPWA.begin(&Serial2, /*dtr_pin*/27, /*wakeup_pin*/14);
+
+    LPWA.begin(&Serial2, /*dtr_pin*/27, /*wakeup_pin*/33);
     LPWA.wakeup();
-    // LPWA.factory_reset();
-    LPWA.configure();
+    LPWA.reset();
+    LPWA.enable_drx();
+    LPWA.enable_psm();
 }
 
 void loop() {
@@ -18,12 +19,16 @@ void loop() {
     } else if (LPWA.urc_map["QGPSURC"].find("XTRA_DL")==1 && LPWA.urc_map["QGPSXTRADATA"].empty()) {
         LPWA.at_send("AT+QGPSXTRADATA?");
     }
-
-    // Run periodic task
+    
+    // Print URC list periodically
     LPWA.update();
     
     // Sleep
-    LPWA.sleep();
     delay(1000);
-    LPWA.wakeup();
+    if (LPWA.urc_map["QGPSURC"].find("XTRA_DL")==1) {
+        LPWA.sleep();
+        delay(10000);
+        LPWA.wakeup();
+        WAIT_FOR(LPWA.ready, NETWORK_TIMEOUT);
+    }
 }
