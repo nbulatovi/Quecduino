@@ -1,0 +1,61 @@
+#######################################
+# Syntax highlighting for Quecduino
+#######################################
+
+#######################################
+# Classes (KEYWORD1)
+#######################################
+
+LPWAClass	KEYWORD1
+LPWA	KEYWORD1
+GNSSFix	KEYWORD1
+
+#######################################
+# Methods (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+end	KEYWORD2
+configure	KEYWORD2
+factory_reset	KEYWORD2
+wakeup	KEYWORD2
+sleep	KEYWORD2
+update	KEYWORD2
+enable_drx	KEYWORD2
+disable_drx	KEYWORD2
+enable_psm	KEYWORD2
+disable_psm	KEYWORD2
+start_gnss	KEYWORD2
+stop_gnss	KEYWORD2
+agnss_download	KEYWORD2
+agnss_check	KEYWORD2
+is_alt1350	KEYWORD2
+mqtt_open	KEYWORD2
+mqtt_connect	KEYWORD2
+mqtt_publish	KEYWORD2
+mqtt_disconnect	KEYWORD2
+mqtt_close	KEYWORD2
+wait_for	KEYWORD2
+at_send	KEYWORD2
+get_urc_list	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+BG770A	LITERAL1
+BG772A	LITERAL1
+BG773A	LITERAL1
+BG950A	LITERAL1
+BG951A	LITERAL1
+BG952A	LITERAL1
+BG953A	LITERAL1
+BG955A	LITERAL1
+BG770S	LITERAL1
+BG950S	LITERAL1
+UNKNOWN	LITERAL1
+AT_BUF_SIZE	LITERAL1
+COMMAND_TIMEOUT	LITERAL1
+MQTT_TIMEOUT	LITERAL1
+NETWORK_TIMEOUT	LITERAL1
+REGISTRATION_TIMEOUT	LITERAL1
