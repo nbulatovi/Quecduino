@@ -82,6 +82,9 @@ void LPWAClass::configure() {
 
     WAIT_FOR(ready, NETWORK_TIMEOUT);
 
+    PRINT("[LPWA] Query Version\n");
+    at_send("AT+QGMR");
+
     if (config.module == BG951A) {
         PRINT("[LPWA] Set GNSS mode\n");
         at_send("AT+QGPSCFG=\"gnss_mode\",1");      // CXD5605 I2C mode
@@ -89,9 +92,9 @@ void LPWAClass::configure() {
     PRINT("[LPWA] Configure Network\n");
     at_send("AT+QCFG=\"band\",0," + config.catm_bands + "," + config.catnb_bands + ",1");
     if (is_alt1350()) {
-        at_send("AT+QCFG=\"iotopmode\",0");         // CatM mode
+        at_send("AT+QCFG=\"iotopmode\",0");         // CatM only (ALT1350 doesn't support mode 2)
     } else {
-        at_send("AT+QCFG=\"iotopmode\",0,1");       // CatM mode
+        at_send("AT+QCFG=\"iotopmode\",2,1");       // CatM preferred, NB-IoT fallback
     }
 
     PRINT("[LPWA] Enable AGNSS\n");
@@ -147,7 +150,6 @@ void LPWAClass::configure() {
     PRINT("[LPWA] Query status\n");
     at_send("AT+CEDRXRDP");
     at_send("AT+CPSMS?");
-    at_send("AT+QGMR?");
 }
 
 void LPWAClass::process_response() {
@@ -175,13 +177,23 @@ void LPWAClass::process_response() {
         gps_on = ready = false;
     } else if (received.find("+") == 0) {
         // Parse URC
-        urc_map[received.substr(1, received.find(':')-1)] = received.substr(received.find(':') + 2);
+        size_t colon = received.find(':');
+        if (colon != std::string::npos && colon + 2 <= received.length()) {
+            urc_map[received.substr(1, colon - 1)] = received.substr(colon + 2);
+        } else {
+            urc_map[received.substr(1)] = "";
+        }
         // Process Registration Status
         registered = !urc_map["CEREG"].empty() && (urc_map["CEREG"].back()=='1' || urc_map["CEREG"].back()=='5');
         // Explain GNSS error codes
         if (received.find("+CME ERROR") == 0) {
             result = received;
-            PRINT("[LPWA] GNSS ERROR: %s\n", gnss_error_table.at(urc_map["CME ERROR"]).c_str());
+            auto it = gnss_error_table.find(urc_map["CME ERROR"]);
+            if (it != gnss_error_table.end()) {
+                PRINT("[LPWA] GNSS ERROR: %s\n", it->second.c_str());
+            } else {
+                PRINT("[LPWA] CME ERROR: %s\n", urc_map["CME ERROR"].c_str());
+            }
         }
     }
 }

@@ -35,7 +35,7 @@ D33      →     PON_TRIG
 GND      →     GND
 ```
 
-On the Quectel TE-B, set **PON_TRIG → OFF** and **AUTO_POWER_ON → ON**.
+On the Quectel TE-B, set **PON_TRIG → OFF** and **AUTO_POWER_ON → ON**, and remove resistor **R0413**.
 
 ### Receive messages
 
@@ -52,8 +52,8 @@ All settings have sensible defaults. Override them before calling `configure()`:
 ```cpp
 LPWA.config.module = BG950A;
 
-// Network bands (default: US bands 2,4,5,12,13,14,25,26 + EU band 20)
-LPWA.config.catm_bands  = "308381A";
+// Network bands (default: US bands 2,4,5,12,13,25,26 + EU band 20)
+LPWA.config.catm_bands  = "308181A";
 
 // Power saving
 LPWA.config.psm_t3324   = "00000010";   // Active timer: 2s

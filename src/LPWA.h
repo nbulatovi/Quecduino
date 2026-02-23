@@ -63,8 +63,8 @@ public:
     struct {
         Module_t    module = UNKNOWN;                                       // Which type of module you have
         std::string proxy_url = "https://44.228.248.147/BG950/cep_pak.bin"; // URL of Quectel AGNSS proxy server
-        std::string catm_bands  = "308381A";    // Cat-M1 bands: US(2,4,5,12,13,14,25,26) + EU(20)
-        std::string catnb_bands = "308381A";    // Cat-NB bands: same as Cat-M1
+        std::string catm_bands  = "308181A";    // Cat-M1 bands: US(2,4,5,12,13,25,26) + EU(20)
+        std::string catnb_bands = "308181A";    // Cat-NB bands: same as Cat-M1
         std::string psm_t3324   = "00000010";   // PSM active timer (2s)
         std::string psm_t3412   = "00100001";   // PSM periodic TAU (1h)
         std::string edrx_cycle  = "1100";       // eDRX cycle (~22 min)

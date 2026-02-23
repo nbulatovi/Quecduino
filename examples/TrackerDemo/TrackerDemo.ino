@@ -37,11 +37,11 @@ void loop() {
     if (!LPWA.gps_on) {
         LPWA.start_gnss();
     }
-    if (LPWA.gnss_fix.count < 5 && millis() - LPWA.gnss_start < 25000) return;
+    if (LPWA.gnss_fix.count < 5 && millis() - LPWA.gnss_start < 30000) return;
     LPWA.stop_gnss();
 
     // MQTT publish ------------------------------------------------------------
-    if (LPWA.gnss_fix.count > 0) {
+    if (LPWA.gnss_fix.count >= 1) {
         LPWA.mqtt_open(MQTT_HOST, MQTT_PORT); 
         LPWA.mqtt_connect("Quecduino");
         char msg[96];
@@ -56,10 +56,13 @@ void loop() {
     LPWA.enable_drx();
     LPWA.enable_psm();
     LPWA.sleep();
-    WAIT_FOR(!LPWA.ready, COMMAND_TIMEOUT); 
-    // MCU can go to sleep here
-    WAIT_FOR(LPWA.ready, 24L*3600*1000); 
-    
+    if (WAIT_FOR(!LPWA.ready, COMMAND_TIMEOUT)) { 
+        // Waiting for modem to wake up - MCU can go to sleep here
+        WAIT_FOR(LPWA.ready, 24L*3600*1000); 
+    } else {
+        Serial.println("Modem did not enter sleep mode - check R0413 on TE-B board");
+    }
+
     // Wake up -----------------------------------------------------------------
     LPWA.wakeup();
     LPWA.disable_psm();
