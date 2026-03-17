@@ -110,6 +110,12 @@ public:
     // Disable PSM mode
     void disable_psm();
 
+    // Prevent PSM entry (volatile, no flash write)
+    void prevent_psm();
+
+    // Allow PSM entry (volatile, no flash write)
+    void allow_psm();
+
     // Turn on GPS to get location
     void start_gnss();
 

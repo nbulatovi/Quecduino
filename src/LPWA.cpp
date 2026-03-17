@@ -255,14 +255,24 @@ void LPWAClass::disable_drx() {
 void LPWAClass::enable_psm() {
     PRINT("[LPWA] Enable PSM\n");
     WAIT_FOR(registered, REGISTRATION_TIMEOUT);
-    at_send("AT+QCFG=\"psm/enter\",1");
-    at_send("AT+CPSMS=1,,,\"" + config.psm_t3324 + "\",\"" + config.psm_t3412 + "\"");
+    at_send("AT+CPSMS=1,,,\"" + config.psm_t3412 + "\",\"" + config.psm_t3324 + "\"");
+    at_send("AT+CPSMS?");
 }
 
 void LPWAClass::disable_psm() {
     PRINT("[LPWA] Disable PSM\n");
     at_send("AT+CPSMS=0");
     at_send("AT+CPSMS?");
+}
+
+void LPWAClass::prevent_psm() {
+    PRINT("[LPWA] Prevent PSM entry\n");
+    at_send("AT+QCFG=\"psm/enter\",0");
+}
+
+void LPWAClass::allow_psm() {
+    PRINT("[LPWA] Allow PSM entry\n");
+    at_send("AT+QCFG=\"psm/enter\",1");
 }
 
 void LPWAClass::start_gnss() {
